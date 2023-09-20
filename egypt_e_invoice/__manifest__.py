@@ -5,7 +5,8 @@
     "version": "14",
     "author": "Ideal Solutions - Saad El Wardany",
     "category": "Accounting",
-    "depends": ["account","uom",'universal_discount'],
+    "license": "LGPL-3",
+    "depends": ["account", "uom", 'universal_discount'],
     "data": [
         "security/security.xml",
         "security/ir.model.access.csv",
