@@ -9,7 +9,7 @@ from odoo.exceptions import ValidationError
 class PurchaseOrder(models.Model):
     _inherit = "purchase.order"
 
-    purchase_types_id = fields.Many2one(comodel_name="purchase.types", string="PO Types", required=False )
+    purchase_types_id = fields.Many2one(comodel_name="purchase.types", string="PO Types", required=True ,ondelete='restrict')
 
     cfo_confirm = fields.Boolean(string="Supply Chain Approver", tracking=True, copy=False)
 
