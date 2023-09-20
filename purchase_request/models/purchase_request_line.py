@@ -17,33 +17,33 @@ class PurchaseRequestLine(models.Model):
 
     _name = "purchase.request.line"
     _description = "Purchase Request Line"
-    _inherit = ["mail.thread", "mail.activity.mixin"]
+    _inherit = ["mail.thread", "mail.activity.mixin", "analytic.mixin"]
     _order = "id desc"
 
-    name = fields.Char(string="Description", )
+    name = fields.Char(string="Description", tracking=True)
     product_uom_id = fields.Many2one(
         comodel_name="uom.uom",
-        string="Product Unit of Measure",
-
+        string="UoM",
+        tracking=True,
+        domain="[('category_id', '=', product_uom_category_id)]",
     )
+    product_uom_category_id = fields.Many2one(related="product_id.uom_id.category_id")
     product_qty = fields.Float(
-        string="Quantity",  digits="Product Unit of Measure"
+        string="Quantity", tracking=True, digits="Product Unit of Measure"
     )
     request_id = fields.Many2one(
         comodel_name="purchase.request",
         string="Purchase Request",
         ondelete="cascade",
         readonly=True,
+        index=True,
+        auto_join=True,
     )
     company_id = fields.Many2one(
         comodel_name="res.company",
         related="request_id.company_id",
         string="Company",
         store=True,
-    )
-    analytic_account_id = fields.Many2one(
-        comodel_name="account.analytic.account",
-        string="Analytic Account",domain=[("analytic_appear", "=", True)],
     )
     requested_by = fields.Many2one(
         comodel_name="res.users",
@@ -70,30 +70,27 @@ class PurchaseRequestLine(models.Model):
     date_required = fields.Date(
         string="Request Date",
         required=True,
+        tracking=True,
         default=fields.Date.context_today,
     )
-    is_editable = fields.Boolean(
-        string="Is editable", compute="_compute_is_editable", readonly=True
-    )
-    specifications = fields.Text(string="Specifications")
+    is_editable = fields.Boolean(compute="_compute_is_editable", readonly=True)
+    specifications = fields.Text()
     request_state = fields.Selection(
         string="Request state",
         related="request_id.state",
-        selection=_STATES,
         store=True,
     )
     supplier_id = fields.Many2one(
         comodel_name="res.partner",
         string="Preferred supplier",
         compute="_compute_supplier_id",
+        compute_sudo=True,
         store=True,
     )
-    cancelled = fields.Boolean(
-        string="Cancelled", readonly=True, default=False, copy=False
-    )
+    cancelled = fields.Boolean(readonly=True, default=False, copy=False)
 
     purchased_qty = fields.Float(
-        string="Quantity in RFQ or PO",
+        string="RFQ/PO Qty",
         digits="Product Unit of Measure",
         compute="_compute_purchased_qty",
     )
@@ -128,7 +125,6 @@ class PurchaseRequestLine(models.Model):
     )
 
     qty_in_progress = fields.Float(
-        string="Qty In Progress",
         digits="Product Unit of Measure",
         readonly=True,
         compute="_compute_qty",
@@ -136,7 +132,6 @@ class PurchaseRequestLine(models.Model):
         help="Quantity in progress.",
     )
     qty_done = fields.Float(
-        string="Qty Done",
         digits="Product Unit of Measure",
         readonly=True,
         compute="_compute_qty",
@@ -144,7 +139,6 @@ class PurchaseRequestLine(models.Model):
         help="Quantity completed",
     )
     qty_cancelled = fields.Float(
-        string="Qty Cancelled",
         digits="Product Unit of Measure",
         readonly=True,
         compute="_compute_qty_cancelled",
@@ -164,7 +158,6 @@ class PurchaseRequestLine(models.Model):
         store=True,
     )
     estimated_cost = fields.Monetary(
-        string="Estimated Cost",
         currency_field="currency_id",
         default=0.0,
         help="Estimated cost of Purchase Request Line, not propagated to PO.",
@@ -173,19 +166,9 @@ class PurchaseRequestLine(models.Model):
     product_id = fields.Many2one(
         comodel_name="product.product",
         string="Product",
-        domain=[("purchase_request", "=", True)],
+        domain=[("purchase_ok", "=", True)],
+        tracking=True,
     )
-
-    @api.onchange('product_id')
-    def _get_alternative_rm_products_domain(self):
-        if self.product_id:
-            return {
-                'domain': {'alternative_rm_product_id': [("id", "in", self.product_id.alternative_products_ids.ids)]}}
-
-    alternative_rm_product_id = fields.Many2one('product.product', string="Alternative Product")
-    alternative_onhand_qty = fields.Float(string='Aternative RM QTY', related='alternative_rm_product_id.qty_available')
-
-    # @api.onchange()
 
     @api.depends(
         "purchase_request_allocation_ids",
@@ -194,6 +177,7 @@ class PurchaseRequestLine(models.Model):
         "purchase_request_allocation_ids.purchase_line_id",
         "purchase_request_allocation_ids.purchase_line_id.state",
         "request_id.state",
+        "product_qty",
     )
     def _compute_qty_to_buy(self):
         for pr in self:
@@ -223,7 +207,7 @@ class PurchaseRequestLine(models.Model):
         "purchase_request_allocation_ids",
         "purchase_request_allocation_ids.stock_move_id.state",
         "purchase_request_allocation_ids.stock_move_id",
-        "purchase_request_allocation_ids.purchase_line_id.order_id." "state",
+        "purchase_request_allocation_ids.purchase_line_id.order_id.state",
         "purchase_request_allocation_ids.purchase_line_id",
     )
     def _compute_qty_cancelled(self):
@@ -258,14 +242,8 @@ class PurchaseRequestLine(models.Model):
                 request.qty_cancelled = qty_cancelled
 
     @api.depends(
-        "product_id",
-        "name",
-        "product_uom_id",
-        "product_qty",
-        "analytic_account_id",
-        "date_required",
-        "specifications",
         "purchase_lines",
+        "request_id.state",
     )
     def _compute_is_editable(self):
         for rec in self:
@@ -279,17 +257,17 @@ class PurchaseRequestLine(models.Model):
     @api.depends("product_id", "product_id.seller_ids")
     def _compute_supplier_id(self):
         for rec in self:
-            rec.supplier_id = False
-            if rec.product_id:
-                if rec.product_id.seller_ids:
-                    rec.supplier_id = rec.product_id.seller_ids[0].name
+            sellers = rec.product_id.seller_ids.filtered(
+                lambda si, rec=rec: not si.company_id or si.company_id == rec.company_id
+            )
+            rec.supplier_id = sellers[0].partner_id if sellers else False
 
     @api.onchange("product_id")
     def onchange_product_id(self):
         if self.product_id:
             name = self.product_id.name
             if self.product_id.code:
-                name = "[{}] {}".format(name, self.product_id.code)
+                name = "[{}] {}".format(self.product_id.code, name)
             if self.product_id.description_purchase:
                 name += "\n" + self.product_id.description_purchase
             self.product_uom_id = self.product_id.uom_id.id
@@ -327,25 +305,21 @@ class PurchaseRequestLine(models.Model):
         for rec in self:
             temp_purchase_state = False
             if rec.purchase_lines:
-                if any([po_line.state == "done" for po_line in rec.purchase_lines]):
+                if any(po_line.state == "done" for po_line in rec.purchase_lines):
                     temp_purchase_state = "done"
-                elif all([po_line.state == "cancel" for po_line in rec.purchase_lines]):
+                elif all(po_line.state == "cancel" for po_line in rec.purchase_lines):
                     temp_purchase_state = "cancel"
-                elif any(
-                    [po_line.state == "purchase" for po_line in rec.purchase_lines]
-                ):
+                elif any(po_line.state == "purchase" for po_line in rec.purchase_lines):
                     temp_purchase_state = "purchase"
                 elif any(
-                    [po_line.state == "to approve" for po_line in rec.purchase_lines]
+                    po_line.state == "to approve" for po_line in rec.purchase_lines
                 ):
                     temp_purchase_state = "to approve"
-                elif any([po_line.state == "sent" for po_line in rec.purchase_lines]):
+                elif any(po_line.state == "sent" for po_line in rec.purchase_lines):
                     temp_purchase_state = "sent"
                 elif all(
-                    [
-                        po_line.state in ("draft", "cancel")
-                        for po_line in rec.purchase_lines
-                    ]
+                    po_line.state in ("draft", "cancel")
+                    for po_line in rec.purchase_lines
                 ):
                     temp_purchase_state = "draft"
             rec.purchase_state = temp_purchase_state
@@ -354,9 +328,9 @@ class PurchaseRequestLine(models.Model):
     def _get_supplier_min_qty(self, product, partner_id=False):
         seller_min_qty = 0.0
         if partner_id:
-            seller = product.seller_ids.filtered(lambda r: r.name == partner_id).sorted(
-                key=lambda r: r.min_qty
-            )
+            seller = product.seller_ids.filtered(
+                lambda r: r.partner_id == partner_id
+            ).sorted(key=lambda r: r.min_qty)
         else:
             seller = product.seller_ids.sorted(key=lambda r: r.min_qty)
         if seller:
@@ -395,7 +369,7 @@ class PurchaseRequestLine(models.Model):
     def unlink(self):
         if self.mapped("purchase_lines"):
             raise UserError(
-                _("You cannot delete a record that refers to purchase " "lines!")
+                _("You cannot delete a record that refers to purchase lines!")
             )
         for line in self:
             if not line._can_be_deleted():
@@ -406,3 +380,20 @@ class PurchaseRequestLine(models.Model):
                     )
                 )
         return super(PurchaseRequestLine, self).unlink()
+
+    def action_show_details(self):
+        self.ensure_one()
+        view = self.env.ref("purchase_request.view_purchase_request_line_details")
+        return {
+            "name": _("Detailed Line"),
+            "type": "ir.actions.act_window",
+            "view_mode": "form",
+            "res_model": "purchase.request.line",
+            "views": [(view.id, "form")],
+            "view_id": view.id,
+            "target": "new",
+            "res_id": self.id,
+            "context": dict(
+                self.env.context,
+            ),
+        }
