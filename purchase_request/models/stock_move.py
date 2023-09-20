@@ -3,6 +3,7 @@
 
 from odoo import _, api, fields, models
 from odoo.exceptions import ValidationError
+from odoo.tools import float_compare
 
 
 class StockMove(models.Model):
@@ -14,6 +15,7 @@ class StockMove(models.Model):
         ondelete="set null",
         readonly=True,
         copy=False,
+        index=True,
     )
 
     purchase_request_allocation_ids = fields.One2many(
@@ -35,17 +37,8 @@ class StockMove(models.Model):
         distinct_fields += ["created_purchase_request_line_id"]
         return distinct_fields
 
-    @api.model
-    def _prepare_merge_move_sort_method(self, move):
-        move.ensure_one()
-        keys_sorted = super(StockMove, self)._prepare_merge_move_sort_method(move)
-        keys_sorted += [
-            move.purchase_line_id.id,
-            move.created_purchase_request_line_id.id,
-        ]
-        return keys_sorted
-
     def _action_cancel(self):
+        """Create an activity on the request for the cancelled procurement move"""
         for move in self:
             if move.created_purchase_request_line_id:
                 try:
@@ -61,7 +54,9 @@ class StockMove(models.Model):
                             "purchase request has been cancelled/deleted. "
                             "Check if an action is needed."
                         ),
-                        "user_id": pr_line.product_id.responsible_id.id,
+                        "user_id": (
+                            pr_line.product_id.responsible_id.id or self.env.user.id
+                        ),
                         "res_id": pr_line.request_id.id,
                         "res_model_id": self.env.ref(
                             "purchase_request.model_purchase_request"
@@ -73,8 +68,8 @@ class StockMove(models.Model):
     @api.depends("purchase_request_allocation_ids")
     def _compute_purchase_request_ids(self):
         for rec in self:
-            rec.purchase_request_ids = rec.purchase_request_allocation_ids.mapped(
-                "purchase_request_id"
+            rec.purchase_request_ids = (
+                rec.purchase_request_allocation_ids.purchase_request_line_id.request_id
             )
 
     def _merge_moves_fields(self):
@@ -86,16 +81,21 @@ class StockMove(models.Model):
 
     @api.constrains("company_id")
     def _check_company_purchase_request(self):
-        if any(
-            self.env["purchase.request.allocation"].search(
-                [
-                    ("company_id", "!=", rec.company_id.id),
-                    ("stock_move_id", "=", rec.id),
-                ],
-                limit=1,
-            )
-            for rec in self
-        ):
+        if not self.ids:
+            return
+        self.env.cr.execute(
+            """
+            SELECT 1
+            FROM purchase_request_allocation pra
+            INNER JOIN stock_move sm
+               ON sm.id=pra.stock_move_id
+            WHERE pra.company_id != sm.company_id
+                AND sm.id IN %s
+            LIMIT 1
+        """,
+            (tuple(self.ids),),
+        )
+        if self.env.cr.fetchone():
             raise ValidationError(
                 _(
                     "The company of the purchase request must match with "
@@ -104,31 +104,46 @@ class StockMove(models.Model):
             )
 
     def copy_data(self, default=None):
-        if not default:
+        """Propagate request allocation on copy.
+
+        If this move is being split, or if this move is processed and there is
+        a remaining allocation, move the appropriate quantity over to the new move.
+        """
+        if default is None:
             default = {}
-        if "allocation_ids" not in default:
-            default["purchase_request_allocation_ids"] = []
-        first_it = True
-        for alloc in self.purchase_request_allocation_ids.filtered(
-            lambda al: al.requested_product_uom_qty > al.allocated_product_qty
+        if not default.get("purchase_request_allocation_ids") and (
+            default.get("product_uom_qty") or self.state in ("done", "cancel")
         ):
-            qty_done = sum(alloc.stock_move_id.mapped("move_line_ids.qty_done"))
-            if first_it:
-                qty_left = qty_done
-                first_it = False
-            if qty_left >= alloc.open_product_qty:
-                qty_left = qty_done - alloc.open_product_qty
-                continue
-            else:
-                open_qty = alloc.open_product_qty - qty_left
-            default["purchase_request_allocation_ids"].append(
-                (
-                    0,
-                    0,
-                    {
-                        "purchase_request_line_id": alloc.purchase_request_line_id.id,
-                        "requested_product_uom_qty": open_qty,
-                    },
+            default["purchase_request_allocation_ids"] = []
+            new_move_qty = default.get("product_uom_qty") or self.product_uom_qty
+            rounding = self.product_id.uom_id.rounding
+            for alloc in self.purchase_request_allocation_ids.filtered(
+                "open_product_qty"
+            ):
+                if (
+                    float_compare(
+                        new_move_qty,
+                        0,
+                        precision_rounding=self.product_id.uom_id.rounding,
+                    )
+                    <= 0
+                    or float_compare(
+                        alloc.open_product_qty, 0, precision_rounding=rounding
+                    )
+                    <= 0
+                ):
+                    break
+                open_qty = min(new_move_qty, alloc.open_product_qty)
+                new_move_qty -= open_qty
+                default["purchase_request_allocation_ids"].append(
+                    (
+                        0,
+                        0,
+                        {
+                            "purchase_request_line_id": alloc.purchase_request_line_id.id,
+                            "requested_product_uom_qty": open_qty,
+                        },
+                    )
                 )
-            )
+                alloc.requested_product_uom_qty -= open_qty
         return super(StockMove, self).copy_data(default)

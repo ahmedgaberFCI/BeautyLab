@@ -14,15 +14,21 @@ class PurchaseRequestAllocation(models.Model):
         required=True,
         ondelete="cascade",
         copy=True,
+        index=True,
     )
     company_id = fields.Many2one(
         string="Company",
         comodel_name="res.company",
         readonly=True,
-        related="purchase_request_line_id.request_id." "company_id",
+        related="purchase_request_line_id.request_id.company_id",
+        store=True,
+        index=True,
     )
     stock_move_id = fields.Many2one(
-        string="Stock Move", comodel_name="stock.move", ondelete="cascade"
+        string="Stock Move",
+        comodel_name="stock.move",
+        ondelete="cascade",
+        index=True,
     )
     purchase_line_id = fields.Many2one(
         string="Purchase Line",
@@ -30,6 +36,7 @@ class PurchaseRequestAllocation(models.Model):
         copy=True,
         ondelete="cascade",
         help="Service Purchase Order Line",
+        index=True,
     )
     product_id = fields.Many2one(
         string="Product",
@@ -92,11 +99,14 @@ class PurchaseRequestAllocation(models.Model):
             "allocated to this purchase request"
         )
         message += "<ul>"
-        message += _("<li><b>%s</b>: Received quantity %s %s</li>") % (
-            message_data["product_name"],
-            message_data["product_qty"],
-            message_data["product_uom"],
-        )
+        message += _(
+            "<li><b>%(product_name)s</b>: "
+            "Received quantity %(product_qty)s %(product_uom)s</li>"
+        ) % {
+            "product_name": message_data["product_name"],
+            "product_qty": message_data["product_qty"],
+            "product_uom": message_data["product_uom"],
+        }
         message += "</ul>"
         return message
 
@@ -117,4 +127,6 @@ class PurchaseRequestAllocation(models.Model):
             po_line = allocation.purchase_line_id
             message_data = self._prepare_message_data(po_line, request, allocated_qty)
             message = self._purchase_request_confirm_done_message_content(message_data)
-            request.message_post(body=message, subtype_xmlid="mail.mt_comment")
+            request.message_post(
+                body=message, subtype_id=self.env.ref("mail.mt_comment").id
+            )

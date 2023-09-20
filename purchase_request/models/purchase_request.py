@@ -2,8 +2,7 @@
 # License LGPL-3.0 or later (https://www.gnu.org/licenses/lgpl-3.0)
 
 from odoo import _, api, fields, models
-from odoo.exceptions import UserError, ValidationError
-
+from odoo.exceptions import UserError
 
 _STATES = [
     ("draft", "Draft"),
@@ -57,33 +56,31 @@ class PurchaseRequest(models.Model):
     name = fields.Char(
         string="Request Reference",
         required=True,
-        default=_get_default_name,
-
+        default=lambda self: _("New"),
+        tracking=True,
+    )
+    is_name_editable = fields.Boolean(
+        default=lambda self: self.env.user.has_group("base.group_no_one"),
     )
     origin = fields.Char(string="Source Document")
-    recommend_vendor = fields.Char(string="Recommended Vendor")
     date_start = fields.Date(
         string="Creation date",
-        help="Date when the user initiated the " "request.",
+        help="Date when the user initiated the request.",
         default=fields.Date.context_today,
-
+        tracking=True,
     )
-
-    approve_date = fields.Date(string="Approve date",copy=False)
-
-    end_date = fields.Date(string="End date",help="Date when the user initiated the " "request.",)
-
     requested_by = fields.Many2one(
         comodel_name="res.users",
-        string="Requested by",
         required=True,
         copy=False,
-
+        tracking=True,
         default=_get_default_requested_by,
+        index=True,
     )
     assigned_to = fields.Many2one(
         comodel_name="res.users",
         string="Approver",
+        tracking=True,
         domain=lambda self: [
             (
                 "groups_id",
@@ -91,14 +88,14 @@ class PurchaseRequest(models.Model):
                 self.env.ref("purchase_request.group_purchase_request_manager").id,
             )
         ],
+        index=True,
     )
-    description = fields.Text(string="Description")
+    description = fields.Text()
     company_id = fields.Many2one(
         comodel_name="res.company",
-        string="Company",
-        required=True,
+        required=False,
         default=_company_get,
-
+        tracking=True,
     )
     line_ids = fields.One2many(
         comodel_name="purchase.request.line",
@@ -106,6 +103,7 @@ class PurchaseRequest(models.Model):
         string="Products to Purchase",
         readonly=False,
         copy=True,
+        tracking=True,
     )
     product_id = fields.Many2one(
         comodel_name="product.product",
@@ -117,44 +115,25 @@ class PurchaseRequest(models.Model):
         selection=_STATES,
         string="Status",
         index=True,
+        tracking=True,
         required=True,
         copy=False,
         default="draft",
     )
-    is_editable = fields.Boolean(
-        string="Is editable", compute="_compute_is_editable", readonly=True
-    )
+    is_editable = fields.Boolean(compute="_compute_is_editable", readonly=True)
     to_approve_allowed = fields.Boolean(compute="_compute_to_approve_allowed")
     picking_type_id = fields.Many2one(
         comodel_name="stock.picking.type",
         string="Picking Type",
+        required=True,
         default=_default_picking_type,
     )
     group_id = fields.Many2one(
-        comodel_name="procurement.group", string="Procurement Group", copy=False
+        comodel_name="procurement.group",
+        string="Procurement Group",
+        copy=False,
+        index=True,
     )
-    urgent_level_id = fields.Many2one(comodel_name="urgent.level", string="Urgent Level",)
-
-    purchase_stages_id = fields.Many2one(comodel_name="purchase.stage", string="PR Stage",)
-    purchase_types_id = fields.Many2one(comodel_name="purchase.types", string="PR Type",)
-    type_checked = fields.Boolean(string="Checked",related="purchase_types_id.checked")
-
-    sale_market_approve = fields.Boolean("Sales & Marketing Approve")
-
-    type_assigned_to_id = fields.Many2one(
-        comodel_name="res.users",
-        string="Owner Approve",
-        domain=lambda self: [
-            (
-                "groups_id",
-                "in",
-                self.env.ref("base.group_system").id,
-            )
-        ],
-    )
-
-    notes = fields.Text(string="Notes")
-
     line_count = fields.Integer(
         string="Purchase Request Line count",
         compute="_compute_line_count",
@@ -166,76 +145,26 @@ class PurchaseRequest(models.Model):
     purchase_count = fields.Integer(
         string="Purchases count", compute="_compute_purchase_count", readonly=True
     )
-
-    def calc_total_estimated_cost(self):
-        x = 0.0
-        for rec in self.line_ids:
-            print("4444444444",rec.estimated_cost)
-            x += rec.estimated_cost
-
-        self.total_estimated_cost = x
-
-
-    total_estimated_cost = fields.Float(string="Estimated Cost",compute="calc_total_estimated_cost")
-
-    owner_confirm = fields.Boolean(string="Owner Confirm",)
-
-    owner_confirm = fields.Selection(
-        [
-            ("confirm", "confirm"),
-
-        ],
-        string="Owner Confirm",
-
+    currency_id = fields.Many2one(related="company_id.currency_id", readonly=True)
+    estimated_cost = fields.Monetary(
+        compute="_compute_estimated_cost",
+        string="Total Estimated Cost",
+        store=True,
     )
-    budget_controller = fields.Boolean(string="Budget Controller", tracking=True, copy=False)
 
-    @api.depends('budget_controller')
-    def calc_budget_controller_date(self):
+    @api.depends("line_ids", "line_ids.estimated_cost")
+    def _compute_estimated_cost(self):
         for rec in self:
-            if rec.budget_controller == True:
-                rec.budget_controller_date = fields.Date.today()
-                PR_Users = self.env.ref('purchase_request.group_pr_schedule_activity_todo').users
-                print("$$$$$$$",PR_Users)
-                if PR_Users:
-                    for user in PR_Users:
-                        won_vals = {
-                            'activity_type_id': 4,
-                            # 'activity_type_id': self.stage_id.activity_type_id.default_next_type_id.id,
-                            'summary': rec.name + " " + "has been approved by budget controller",
-                            'automated': True,
-                            'note': rec.name,
-                            'date_deadline': fields.Date.context_today(self),
-                            'res_model_id': 908,
-                            'res_id': rec._origin.id,
-                            'user_id': user.id
-                        }
-                        print(won_vals)
-                        scheduled_activity_PR = self.env['mail.activity'].sudo().create(won_vals)
-                        print("@@@@@@@@", scheduled_activity_PR)
-            else:
-                rec.budget_controller_date = False
-
-    budget_controller_date = fields.Date(string="Budget Controll Date",compute="calc_budget_controller_date",store=True)
-
-
-    @api.depends('type_assigned_to_id')
-    def calc_type_assigned_to_id(self):
-        if self.type_assigned_to_id and self.type_checked or self.total_estimated_cost >= 25000:
-            self.to_check = True
-        else:
-            self.to_check = False
-
-    to_check = fields.Boolean(string="To check ",compute="calc_type_assigned_to_id")
-
+            rec.estimated_cost = sum(rec.line_ids.mapped("estimated_cost"))
 
     @api.depends("line_ids")
     def _compute_purchase_count(self):
-        self.purchase_count = len(self.mapped("line_ids.purchase_lines.order_id"))
+        for rec in self:
+            rec.purchase_count = len(rec.mapped("line_ids.purchase_lines.order_id"))
 
     def action_view_purchase_order(self):
-        action = self.env.ref("purchase.purchase_rfq").sudo().read()[0]
-        lines = self.sudo().mapped("line_ids.purchase_lines.order_id")
+        action = self.env["ir.actions.actions"]._for_xml_id("purchase.purchase_rfq")
+        lines = self.mapped("line_ids.purchase_lines.order_id")
         if len(lines) > 1:
             action["domain"] = [("id", "in", lines.ids)]
         elif lines:
@@ -247,19 +176,24 @@ class PurchaseRequest(models.Model):
 
     @api.depends("line_ids")
     def _compute_move_count(self):
-        self.move_count = len(
-            self.mapped("line_ids.purchase_request_allocation_ids.stock_move_id")
-        )
+        for rec in self:
+            rec.move_count = len(
+                rec.mapped("line_ids.purchase_request_allocation_ids.stock_move_id")
+            )
 
-    def action_view_stock_move(self):
-        action = self.env.ref("stock.stock_move_action").read()[0]
+    def action_view_stock_picking(self):
+        action = self.env["ir.actions.actions"]._for_xml_id(
+            "stock.action_picking_tree_all"
+        )
         # remove default filters
         action["context"] = {}
-        lines = self.mapped("line_ids.purchase_request_allocation_ids.stock_move_id")
+        lines = self.mapped(
+            "line_ids.purchase_request_allocation_ids.stock_move_id.picking_id"
+        )
         if len(lines) > 1:
             action["domain"] = [("id", "in", lines.ids)]
         elif lines:
-            action["views"] = [(self.env.ref("stock.view_move_form").id, "form")]
+            action["views"] = [(self.env.ref("stock.view_picking_form").id, "form")]
             action["res_id"] = lines.id
         return action
 
@@ -269,9 +203,11 @@ class PurchaseRequest(models.Model):
             rec.line_count = len(rec.mapped("line_ids"))
 
     def action_view_purchase_request_line(self):
-        action = self.env.ref(
-            "purchase_request.purchase_request_line_form_action"
-        ).read()[0]
+        action = (
+            self.env.ref("purchase_request.purchase_request_line_form_action")
+            .sudo()
+            .read()[0]
+        )
         lines = self.mapped("line_ids")
         if len(lines) > 1:
             action["domain"] = [("id", "in", lines.ids)]
@@ -286,18 +222,13 @@ class PurchaseRequest(models.Model):
     def _compute_to_approve_allowed(self):
         for rec in self:
             rec.to_approve_allowed = rec.state == "draft" and any(
-                [not line.cancelled and line.product_qty for line in rec.line_ids]
+                not line.cancelled and line.product_qty for line in rec.line_ids
             )
 
     def copy(self, default=None):
         default = dict(default or {})
         self.ensure_one()
-        default.update(
-            {
-                "state": "draft",
-                "name": self.env["ir.sequence"].next_by_code("purchase.request"),
-            }
-        )
+        default.update({"state": "draft", "name": self._get_default_name()})
         return super(PurchaseRequest, self).copy(default)
 
     @api.model
@@ -305,13 +236,17 @@ class PurchaseRequest(models.Model):
         user_id = request.assigned_to or self.env.user
         return user_id.partner_id.id
 
-    @api.model
-    def create(self, vals):
-        request = super(PurchaseRequest, self).create(vals)
-        if vals.get("assigned_to"):
-            partner_id = self._get_partner_id(request)
-            request.message_subscribe(partner_ids=[partner_id])
-        return request
+    @api.model_create_multi
+    def create(self, vals_list):
+        for vals in vals_list:
+            if vals.get("name", _("New")) == _("New"):
+                vals["name"] = self._get_default_name()
+        requests = super(PurchaseRequest, self).create(vals_list)
+        for vals, request in zip(vals_list, requests):
+            if vals.get("assigned_to"):
+                partner_id = self._get_partner_id(request)
+                request.message_subscribe(partner_ids=[partner_id])
+        return requests
 
     def write(self, vals):
         res = super(PurchaseRequest, self).write(vals)
@@ -338,15 +273,11 @@ class PurchaseRequest(models.Model):
         return self.write({"state": "draft"})
 
     def button_to_approve(self):
-
         self.to_approve_allowed_check()
         return self.write({"state": "to_approve"})
 
     def button_approved(self):
-        if self.department_id.for_approve and not self.sale_market_approve:
-            raise ValidationError("Please , Wait Sales & Marketing Department Approve")
-
-        return self.write({"state": "approved",'approve_date':fields.Date.today()})
+        return self.write({"state": "approved"})
 
     def button_rejected(self):
         self.mapped("line_ids").do_cancel()
