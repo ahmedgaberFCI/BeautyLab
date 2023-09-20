@@ -2,7 +2,8 @@
 # License LGPL-3.0 or later (https://www.gnu.org/licenses/lgpl-3.0)
 
 from odoo import api, fields, models
-
+import logging
+_logger = logging.getLogger(__name__)
 
 class StockRule(models.Model):
     _inherit = "stock.rule"
@@ -57,11 +58,15 @@ class StockRule(models.Model):
             ("company_id", "=", values["company_id"].id),
         )
         gpo = self.group_propagation_option
+        _logger.info("values ======== %s", values)
+
+
         group_id = (
             (gpo == "fixed" and self.group_id.id)
             or (gpo == "propagate" and values["group_id"].id)
             or False
-        )
+        ) if values['group_id'] != False else False
+
         if group_id:
             domain += (("group_id", "=", group_id),)
         return domain
@@ -101,6 +106,9 @@ class StockRule(models.Model):
         purchase_request_line_model = self.env["purchase.request.line"]
         cache = {}
         pr = self.env["purchase.request"]
+        _logger.info("procurement ======== %s", procurement)
+        _logger.info("procurement values ======== %s", procurement.values)
+
         domain = rule._make_pr_get_domain(procurement.values)
         if domain in cache:
             pr = cache[domain]
@@ -114,14 +122,12 @@ class StockRule(models.Model):
             )
             pr = purchase_request_model.create(request_data)
             cache[domain] = pr
-        elif (
-            not pr.origin
-            or procurement.origin not in pr.origin.split(", ")
-            and procurement.origin != "/"
-        ):
+        elif not pr.origin or procurement.origin not in pr.origin.split(", "):
             if pr.origin:
                 if procurement.origin:
                     pr.write({"origin": pr.origin + ", " + procurement.origin})
+                else:
+                    pr.write({"origin": pr.origin})
             else:
                 pr.write({"origin": procurement.origin})
         # Create Line
