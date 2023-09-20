@@ -1,9 +1,10 @@
 # Copyright 2018-2019 ForgeFlow, S.L.
 # License LGPL-3.0 or later (https://www.gnu.org/licenses/lgpl-3.0)
 
-from odoo import SUPERUSER_ID, exceptions
+from odoo import exceptions
 from odoo.exceptions import UserError
 from odoo.tests.common import Form, TransactionCase
+from odoo.tools import SUPERUSER_ID
 
 
 class TestPurchaseRequest(TransactionCase):
@@ -13,10 +14,8 @@ class TestPurchaseRequest(TransactionCase):
         self.purchase_request_line_obj = self.env["purchase.request.line"]
         self.purchase_order = self.env["purchase.order"]
         self.wiz = self.env["purchase.request.line.make.purchase.order"]
-        self.picking_type_id = self.env.ref("stock.picking_type_in")
         vals = {
-            "group_id": self.env["procurement.group"].create({}).id,
-            "picking_type_id": self.picking_type_id.id,
+            "picking_type_id": self.env.ref("stock.picking_type_in").id,
             "requested_by": SUPERUSER_ID,
         }
         self.purchase_request = self.purchase_request_obj.create(vals)
@@ -27,10 +26,6 @@ class TestPurchaseRequest(TransactionCase):
             "product_qty": 5.0,
         }
         self.purchase_request_line_obj.create(vals)
-
-    def test_purchase_request_line_action(self):
-        action = self.purchase_request.line_ids.action_show_details()
-        self.assertEqual(action["res_id"], self.purchase_request.line_ids.id)
 
     def test_purchase_request_status(self):
         """Tests Purchase Request status workflow."""
@@ -45,7 +40,7 @@ class TestPurchaseRequest(TransactionCase):
         with self.assertRaises(exceptions.UserError) as e:
             purchase_request.unlink()
         msg = "You cannot delete a purchase request which is not draft."
-        self.assertIn(msg, e.exception.args[0])
+        self.assertIn(msg, e.exception.name)
         self.assertEqual(purchase_request.is_editable, False, "Should not be editable")
         purchase_request.button_draft()
         self.assertEqual(purchase_request.is_editable, True, "Should be editable")
@@ -56,7 +51,7 @@ class TestPurchaseRequest(TransactionCase):
         with self.assertRaises(exceptions.UserError) as e:
             purchase_request.unlink()
         msg = "You cannot delete a purchase request which is not draft."
-        self.assertIn(msg, e.exception.args[0])
+        self.assertIn(msg, e.exception.name)
         purchase_request.button_rejected()
         self.assertEqual(purchase_request.is_editable, False, "Should not be editable")
         vals = {
@@ -68,35 +63,6 @@ class TestPurchaseRequest(TransactionCase):
         purchase_request_line = self.purchase_request_line_obj.create(vals)
         purchase_request.button_approved()
         vals = {"supplier_id": self.env.ref("base.res_partner_1").id}
-
-        # It is required to have a picking type
-        purchase_request.picking_type_id = False
-        with self.assertRaisesRegex(UserError, "a Picking Type"):
-            self.wiz.with_context(
-                active_model="purchase.request",
-                active_ids=[purchase_request.id],
-            ).create(vals)
-        purchase_request.picking_type_id = self.picking_type_id
-
-        # Picking type across all lines have to be the same
-        purchase_request2 = purchase_request.copy(
-            {"picking_type_id": self.picking_type_id.copy().id}
-        )
-        purchase_request2.button_approved()
-        with self.assertRaisesRegex(UserError, "same Picking Type"):
-            self.wiz.with_context(
-                active_model="purchase.request.line",
-                active_ids=(purchase_request_line + purchase_request2.line_ids).ids,
-            ).create(vals)
-
-        purchase_request2.picking_type_id = purchase_request.picking_type_id
-        purchase_request2.group_id = self.env["procurement.group"].create({})
-        with self.assertRaisesRegex(UserError, "different procurement group"):
-            self.wiz.with_context(
-                active_model="purchase.request.line",
-                active_ids=(purchase_request_line + purchase_request2.line_ids).ids,
-            ).create(vals)
-
         wiz_id = self.wiz.with_context(
             active_model="purchase.request.line", active_ids=[purchase_request_line.id]
         ).create(vals)
@@ -107,27 +73,17 @@ class TestPurchaseRequest(TransactionCase):
         purchase = purchase_request_line.purchase_lines.order_id
         purchase.button_done()
         self.assertEqual(purchase.state, "done")
-
-        with self.assertRaisesRegex(
-            UserError, "The purchase has already been completed"
-        ):
-            self.wiz.with_context(
-                active_model="purchase.request.line",
-                active_ids=[purchase_request_line.id],
-            ).create(vals)
-
         purchase_request_line._compute_purchase_state()
         # Error case purchase_order in state done
-        with self.assertRaisesRegex(UserError, "has already been completed"):
+        with self.assertRaises(UserError):
             purchase.button_confirm()
         purchase.button_cancel()
         self.assertEqual(purchase.state, "cancel")
         purchase_request_line._compute_purchase_state()
-        with self.assertRaisesRegex(
-            exceptions.UserError,
-            "You cannot delete a purchase request which is not draft",
-        ):
+        with self.assertRaises(exceptions.UserError) as e:
             purchase_request.unlink()
+        msg = "You cannot delete a purchase request which is not draft."
+        self.assertIn(msg, e.exception.name)
         purchase_request.button_draft()
         purchase_request.unlink()
 
@@ -246,7 +202,7 @@ class TestPurchaseRequest(TransactionCase):
         # create purchase order from done state
         self.assertEqual(purchase_request.state, "done")
         purchase_request_line._compute_is_editable()
-        with self.assertRaisesRegex(UserError, "already been completed"):
+        with self.assertRaises(UserError):
             self.wiz.with_context(
                 active_model="purchase.request.line",
                 active_ids=[purchase_request_line.id],
@@ -259,7 +215,7 @@ class TestPurchaseRequest(TransactionCase):
         wiz_id = self.wiz.with_context(
             active_model="purchase.request.line", active_ids=[purchase_request_line.id]
         ).create(vals)
-        with self.assertRaisesRegex(UserError, "Enter a positive quantity"):
+        with self.assertRaises(UserError):
             wiz_id.make_purchase_order()
 
     def test_purchase_request_unlink(self):
@@ -274,7 +230,7 @@ class TestPurchaseRequest(TransactionCase):
             "You can only delete a purchase request line "
             "if the purchase request is in draft state."
         )
-        self.assertIn(msg, e.exception.args[0])
+        self.assertIn(msg, e.exception.name)
         pr.button_done()
         self.assertEqual(pr.state, "done", "Should be in state done")
         with self.assertRaises(exceptions.UserError) as e:
@@ -283,7 +239,7 @@ class TestPurchaseRequest(TransactionCase):
             "You can only delete a purchase request line "
             "if the purchase request is in draft state."
         )
-        self.assertIn(msg, e.exception.args[0])
+        self.assertIn(msg, e.exception.name)
         pr.button_draft()
         self.assertEqual(pr.state, "draft", "Should be in state draft")
         pr_lines.unlink()

@@ -1,10 +1,12 @@
 # Copyright 2018-2019 ForgeFlow, S.L.
 # License LGPL-3.0 or later (https://www.gnu.org/licenses/lgpl-3.0).
+
 from datetime import datetime
 
 from odoo import _, api, fields, models
 from odoo.exceptions import UserError
-from odoo.tools import get_lang
+from odoo.exceptions import ValidationError
+
 
 
 class PurchaseRequestLineMakePurchaseOrder(models.TransientModel):
@@ -15,7 +17,8 @@ class PurchaseRequestLineMakePurchaseOrder(models.TransientModel):
         comodel_name="res.partner",
         string="Supplier",
         required=True,
-        context={"res_partner_search_mode": "supplier"},
+        domain=[("is_company", "=", True)],
+        context={"res_partner_search_mode": "supplier", "default_is_company": True},
     )
     item_ids = fields.One2many(
         comodel_name="purchase.request.line.make.purchase.order.item",
@@ -28,11 +31,7 @@ class PurchaseRequestLineMakePurchaseOrder(models.TransientModel):
         domain=[("state", "=", "draft")],
     )
     sync_data_planned = fields.Boolean(
-        string="Match existing PO lines by Scheduled Date",
-        help=(
-            "When checked, PO lines on the selected purchase order are only reused "
-            "if the scheduled date matches as well."
-        ),
+        string="Merge on PO lines with equal Scheduled Date"
     )
 
     @api.model
@@ -64,7 +63,7 @@ class PurchaseRequestLineMakePurchaseOrder(models.TransientModel):
 
             line_company_id = line.company_id and line.company_id.id or False
             if company_id is not False and line_company_id != company_id:
-                raise UserError(_("You have to select lines from the same company."))
+                raise UserError(_("You have to select lines " "from the same company."))
             else:
                 company_id = line_company_id
 
@@ -73,7 +72,7 @@ class PurchaseRequestLineMakePurchaseOrder(models.TransientModel):
                 raise UserError(_("You have to enter a Picking Type."))
             if picking_type is not False and line_picking_type != picking_type:
                 raise UserError(
-                    _("You have to select lines from the same Picking Type.")
+                    _("You have to select lines " "from the same Picking Type.")
                 )
             else:
                 picking_type = line_picking_type
@@ -134,8 +133,27 @@ class PurchaseRequestLineMakePurchaseOrder(models.TransientModel):
             "picking_type_id": picking_type.id,
             "company_id": company.id,
             "group_id": group_id.id,
+            "purchase_types_id": self.env['purchase.request'].browse(self.env.context.get("active_id", False)).purchase_types_id.id,
+            "budget_controller": self.env['purchase.request'].browse(self.env.context.get("active_id", False)).budget_controller,
         }
         return data
+
+    @api.model
+    def _get_purchase_line_onchange_fields(self):
+        return ["product_uom", "price_unit", "name", "taxes_id"]
+
+    @api.model
+    def _execute_purchase_line_onchange(self, vals):
+        cls = self.env["purchase.order.line"]
+        onchanges_dict = {
+            "onchange_product_id": self._get_purchase_line_onchange_fields()
+        }
+        for onchange_method, changed_fields in onchanges_dict.items():
+            if any(f not in vals for f in changed_fields):
+                obj = cls.new(vals)
+                getattr(obj, onchange_method)()
+                for field in changed_fields:
+                    vals[field] = obj._fields[field].convert_to_write(obj[field], obj)
 
     def create_allocation(self, po_line, pr_line, new_qty, alloc_uom):
         vals = {
@@ -161,27 +179,27 @@ class PurchaseRequestLineMakePurchaseOrder(models.TransientModel):
         min_qty = item.line_id._get_supplier_min_qty(product, po.partner_id)
         qty = max(qty, min_qty)
         date_required = item.line_id.date_required
-        return {
+        vals = {
+            "name": product.name,
             "order_id": po.id,
             "product_id": product.id,
             "product_uom": product.uom_po_id.id or product.uom_id.id,
             "price_unit": 0.0,
             "product_qty": qty,
-            "analytic_distribution": item.line_id.analytic_distribution,
+            "account_analytic_id": item.line_id.analytic_account_id.id,
             "purchase_request_lines": [(4, item.line_id.id)],
             "date_planned": datetime(
                 date_required.year, date_required.month, date_required.day
             ),
             "move_dest_ids": [(4, x.id) for x in item.line_id.move_dest_ids],
         }
+        self._execute_purchase_line_onchange(vals)
+        return vals
 
     @api.model
     def _get_purchase_line_name(self, order, line):
-        """Fetch the product name as per supplier settings"""
         product_lang = line.product_id.with_context(
-            lang=get_lang(self.env, self.supplier_id.lang).code,
-            partner_id=self.supplier_id.id,
-            company_id=order.company_id.id,
+            {"lang": self.supplier_id.lang, "partner_id": self.supplier_id.id}
         )
         name = product_lang.display_name
         if product_lang.description_purchase:
@@ -195,9 +213,9 @@ class PurchaseRequestLineMakePurchaseOrder(models.TransientModel):
         order_line_data = [
             ("order_id", "=", order.id),
             ("name", "=", name),
-            ("product_id", "=", item.product_id.id),
+            ("product_id", "=", item.product_id.id or False),
             ("product_uom", "=", vals["product_uom"]),
-            ("analytic_distribution", "=?", item.line_id.analytic_distribution),
+            ("account_analytic_id", "=", item.line_id.analytic_account_id.id or False),
         ]
         if self.sync_data_planned:
             date_required = item.line_id.date_required
@@ -215,7 +233,16 @@ class PurchaseRequestLineMakePurchaseOrder(models.TransientModel):
         return order_line_data
 
     def make_purchase_order(self):
+        pr_obj = self.env['purchase.request'].browse(self.env.context.get("active_id", False))
+        # if not self.env['purchase.request'].browse(self.env.context.get("active_id", False)).budget_controller:
+        if not pr_obj.budget_controller and not pr_obj.purchase_types_id.mps_checked:
+            raise ValidationError("Please , Wait Budget Controller Manager Approve")
+
+        # if not self.env['purchase.request'].browse(self.env.context.get("active_id", False)).budget_controller:
+        #     raise ValidationError("Please , Wait Budget Controller Manager Approve")
+
         res = []
+
         purchase_obj = self.env["purchase.order"]
         po_line_obj = self.env["purchase.order.line"]
         pr_line_obj = self.env["purchase.request.line"]
@@ -223,6 +250,10 @@ class PurchaseRequestLineMakePurchaseOrder(models.TransientModel):
 
         for item in self.item_ids:
             line = item.line_id
+            print("############33", item.line_id.request_id)
+            # if item.line_id.request_id.owner_confirm != 'confirm':
+            #     if item.line_id.request_id.type_checked or item.line_id.request_id.total_estimated_cost >= 25000.0 :
+            #         raise ValidationError("Please , Wait Chairman Approver")
             if item.product_qty <= 0.0:
                 raise UserError(_("Enter a positive quantity."))
             if self.purchase_order_id:
@@ -232,7 +263,7 @@ class PurchaseRequestLineMakePurchaseOrder(models.TransientModel):
                     line.request_id.picking_type_id,
                     line.request_id.group_id,
                     line.company_id,
-                    line.origin,
+                    line.request_id.name,
                 )
                 purchase = purchase_obj.create(po_data)
 
@@ -279,9 +310,9 @@ class PurchaseRequestLineMakePurchaseOrder(models.TransientModel):
                 line, po_line=po_line, new_pr_line=new_pr_line
             )
             po_line.product_qty = new_qty
-            # The quantity update triggers a compute method that alters the
-            # unit price (which is what we want, to honor graduate pricing)
-            # but also the scheduled date which is what we don't want.
+            po_line._onchange_quantity()
+            # The onchange quantity is altering the scheduled date of the PO
+            # lines. We do not want that:
             date_required = item.line_id.date_required
             po_line.date_planned = datetime(
                 date_required.year, date_required.month, date_required.day
@@ -342,15 +373,14 @@ class PurchaseRequestLineMakePurchaseOrderItem(models.TransientModel):
     @api.onchange("product_id")
     def onchange_product_id(self):
         if self.product_id:
-            if not self.keep_description:
-                name = self.product_id.name
+            name = self.product_id.name
             code = self.product_id.code
             sup_info_id = self.env["product.supplierinfo"].search(
                 [
                     "|",
                     ("product_id", "=", self.product_id.id),
                     ("product_tmpl_id", "=", self.product_id.product_tmpl_id.id),
-                    ("partner_id", "=", self.wiz_id.supplier_id.id),
+                    ("name", "=", self.wiz_id.supplier_id.id),
                 ]
             )
             if sup_info_id:
@@ -361,11 +391,9 @@ class PurchaseRequestLineMakePurchaseOrderItem(models.TransientModel):
                 )
             else:
                 if code:
-                    name = "[{}] {}".format(
-                        code, self.name if self.keep_description else name
-                    )
-            if self.product_id.description_purchase and not self.keep_description:
+                    name = "[{}] {}".format(code, name)
+            if self.product_id.description_purchase:
                 name += "\n" + self.product_id.description_purchase
             self.product_uom_id = self.product_id.uom_id.id
-            if name:
-                self.name = name
+            self.product_qty = 1.0
+            self.name = name
