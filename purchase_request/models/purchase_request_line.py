@@ -175,15 +175,15 @@ class PurchaseRequestLine(models.Model):
         string="Product",
         domain=[("purchase_request", "=", True)],
     )
-
-    @api.onchange('product_id')
-    def _get_alternative_rm_products_domain(self):
-        if self.product_id:
-            return {
-                'domain': {'alternative_rm_product_id': [("id", "in", self.product_id.alternative_products_ids.ids)]}}
-
-    alternative_rm_product_id = fields.Many2one('product.product', string="Alternative Product")
-    alternative_onhand_qty = fields.Float(string='Aternative RM QTY', related='alternative_rm_product_id.qty_available')
+    #
+    # @api.onchange('product_id')
+    # def _get_alternative_rm_products_domain(self):
+    #     if self.product_id:
+    #         return {
+    #             'domain': {'alternative_rm_product_id': [("id", "in", self.product_id.alternative_products_ids.ids)]}}
+    #
+    # alternative_rm_product_id = fields.Many2one('product.product', string="Alternative Product")
+    # alternative_onhand_qty = fields.Float(string='Aternative RM QTY', related='alternative_rm_product_id.qty_available')
 
     # @api.onchange()
 
