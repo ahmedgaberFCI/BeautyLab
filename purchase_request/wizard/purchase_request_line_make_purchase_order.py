@@ -186,7 +186,7 @@ class PurchaseRequestLineMakePurchaseOrder(models.TransientModel):
             "product_uom": product.uom_po_id.id or product.uom_id.id,
             "price_unit": 0.0,
             "product_qty": qty,
-            "account_analytic_id": item.line_id.analytic_account_id.id,
+            # "account_analytic_id": item.line_id.analytic_account_id.id,
             "purchase_request_lines": [(4, item.line_id.id)],
             "date_planned": datetime(
                 date_required.year, date_required.month, date_required.day
@@ -215,7 +215,6 @@ class PurchaseRequestLineMakePurchaseOrder(models.TransientModel):
             ("name", "=", name),
             ("product_id", "=", item.product_id.id or False),
             ("product_uom", "=", vals["product_uom"]),
-            ("account_analytic_id", "=", item.line_id.analytic_account_id.id or False),
         ]
         if self.sync_data_planned:
             date_required = item.line_id.date_required
