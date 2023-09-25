@@ -282,7 +282,7 @@ class PurchaseRequestLine(models.Model):
             rec.supplier_id = False
             if rec.product_id:
                 if rec.product_id.seller_ids:
-                    rec.supplier_id = rec.product_id.seller_ids[0].name
+                    rec.supplier_id = rec.product_id.seller_ids[0].partner_id.id
 
     @api.onchange("product_id")
     def onchange_product_id(self):
@@ -354,7 +354,7 @@ class PurchaseRequestLine(models.Model):
     def _get_supplier_min_qty(self, product, partner_id=False):
         seller_min_qty = 0.0
         if partner_id:
-            seller = product.seller_ids.filtered(lambda r: r.name == partner_id).sorted(
+            seller = product.seller_ids.filtered(lambda r: r.partner_id == partner_id).sorted(
                 key=lambda r: r.min_qty
             )
         else:
