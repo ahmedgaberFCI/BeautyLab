@@ -186,6 +186,7 @@ class PurchaseRequestLineMakePurchaseOrder(models.TransientModel):
             "product_uom": product.uom_po_id.id or product.uom_id.id,
             "price_unit": 0.0,
             "product_qty": qty,
+            "analytic_distribution": item.line_id.analytic_distribution,
             # "account_analytic_id": item.line_id.analytic_account_id.id,
             "purchase_request_lines": [(4, item.line_id.id)],
             "date_planned": datetime(
@@ -210,11 +211,18 @@ class PurchaseRequestLineMakePurchaseOrder(models.TransientModel):
     def _get_order_line_search_domain(self, order, item):
         vals = self._prepare_purchase_order_line(order, item)
         name = self._get_purchase_line_name(order, item)
+        # order_line_data = [
+        #     ("order_id", "=", order.id),
+        #     ("name", "=", name),
+        #     ("product_id", "=", item.product_id.id or False),
+        #     ("product_uom", "=", vals["product_uom"]),
+        # ]
         order_line_data = [
             ("order_id", "=", order.id),
             ("name", "=", name),
-            ("product_id", "=", item.product_id.id or False),
+            ("product_id", "=", item.product_id.id),
             ("product_uom", "=", vals["product_uom"]),
+            ("analytic_distribution", "=?", item.line_id.analytic_distribution),
         ]
         if self.sync_data_planned:
             date_required = item.line_id.date_required
