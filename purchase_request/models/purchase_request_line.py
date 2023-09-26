@@ -43,7 +43,7 @@ class PurchaseRequestLine(models.Model):
     )
     analytic_account_id = fields.Many2one(
         comodel_name="account.analytic.account",
-        string="Analytic Account",domain=[("analytic_appear", "=", True)],
+        string="Analytic Account"
     )
     requested_by = fields.Many2one(
         comodel_name="res.users",
