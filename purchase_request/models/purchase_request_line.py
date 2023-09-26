@@ -45,6 +45,10 @@ class PurchaseRequestLine(models.Model):
         comodel_name="account.analytic.account",
         string="Analytic Account"
     )
+
+    analytic_distribution = fields.Json(
+        inverse="_inverse_analytic_distribution",
+    )
     requested_by = fields.Many2one(
         comodel_name="res.users",
         related="request_id.requested_by",
