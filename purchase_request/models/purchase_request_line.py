@@ -48,6 +48,11 @@ class PurchaseRequestLine(models.Model):
 
     analytic_distribution = fields.Json('Analytic',)
 
+    analytic_precision = fields.Integer(
+        store=False,
+        default=lambda self: self.env['decimal.precision'].precision_get("Percentage Analytic"),
+    )
+
     requested_by = fields.Many2one(
         comodel_name="res.users",
         related="request_id.requested_by",
