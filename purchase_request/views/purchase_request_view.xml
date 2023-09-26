@@ -170,8 +170,8 @@
                                     <field name="product_id" required="1"
                                            options="{'no_quick_create': True, 'no_create_edit' : True}"/>
                                     <field name="name"/>
-<!--                                    <field name="alternative_rm_product_id" options="{'no_quick_create': True, 'no_create_edit' : True}"/>-->
-<!--                                    <field name="alternative_onhand_qty"/>-->
+                                    <!--                                    <field name="alternative_rm_product_id" options="{'no_quick_create': True, 'no_create_edit' : True}"/>-->
+                                    <!--                                    <field name="alternative_onhand_qty"/>-->
 
                                     <field name="product_qty"/>
                                     <field
@@ -179,13 +179,13 @@
                                             groups="uom.group_uom"
                                     />
 
-                                    <field name="analytic_distribution" widget="analytic_distribution" groups="analytic.group_analytic_accounting"
-                                            readonly="1"/>
-<!--                                    <field-->
-<!--                                            name="analytic_account_id" required="1"-->
-<!--                                            options="{'no_quick_create': True, 'no_create_edit' : True}"-->
-<!--                                            groups="analytic.group_analytic_accounting"-->
-<!--                                    />-->
+                                    <field name="analytic_distribution" widget="analytic_distribution"
+                                           groups="analytic.group_analytic_accounting"/>
+                                    <!--                                    <field-->
+                                    <!--                                            name="analytic_account_id" required="1"-->
+                                    <!--                                            options="{'no_quick_create': True, 'no_create_edit' : True}"-->
+                                    <!--                                            groups="analytic.group_analytic_accounting"-->
+                                    <!--                                    />-->
                                     <field name="date_required"/>
                                     <field name="estimated_cost" widget="monetary"/>
                                     <field name="currency_id" invisible="1"/>
@@ -232,11 +232,9 @@
                                                             attrs="{'readonly': [('is_editable','=', False)]}"
                                                     />
                                                 </div>
-                                                <field
-                                                        name="analytic_account_id"
-                                                        groups="analytic.group_analytic_accounting"
-                                                        attrs="{'readonly': [('is_editable','=', False)]}"
-                                                />
+                                                <field name="analytic_distribution" widget="analytic_distribution"
+                                                       groups="analytic.group_analytic_accounting" readonly="1"/>
+
                                                 <field
                                                         name="date_required"
                                                         attrs="{'readonly': [('is_editable','=', False)]}"
