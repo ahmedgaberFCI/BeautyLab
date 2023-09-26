@@ -186,7 +186,7 @@ class PurchaseRequestLineMakePurchaseOrder(models.TransientModel):
             "product_uom": product.uom_po_id.id or product.uom_id.id,
             "price_unit": 0.0,
             "product_qty": qty,
-            "analytic_distribution": item.line_id.analytic_distribution,
+            "analytic_distribution": item.line_id.analytic_distribution or False,
             # "account_analytic_id": item.line_id.analytic_account_id.id,
             "purchase_request_lines": [(4, item.line_id.id)],
             "date_planned": datetime(
