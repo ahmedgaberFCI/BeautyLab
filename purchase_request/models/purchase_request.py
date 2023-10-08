@@ -206,7 +206,7 @@ class PurchaseRequest(models.Model):
                             'automated': True,
                             'note': rec.name,
                             'date_deadline': fields.Date.context_today(self),
-                            'res_model_id': 908,
+                            'res_model_id': 624,
                             'res_id': rec._origin.id,
                             'user_id': user.id
                         }
