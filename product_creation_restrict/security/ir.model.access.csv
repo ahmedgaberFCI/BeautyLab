@@ -29,8 +29,5 @@ product.access_product_product_manager,product.product.manager,product.model_pro
 hr_expense.access_product_product_hr_expense_user,product.product.hr.expense.user,product.model_product_product,hr_expense.group_hr_expense_team_approver,1,0,0,0
 hr_expense.access_product_template_hr_expense_user,product.template.hr.expense.user,product.model_product_template,hr_expense.group_hr_expense_team_approver,1,0,0,0
 
-
-
-
 "access_show_product_template_only","show_product_template_only","product.model_product_template",product_creation_restrict.product_creation_restriction_group,1,1,1,1
 
