@@ -7,8 +7,6 @@
 "mrp.access_product_product_mrp_manager","product.product mrp_manager","product.model_product_product",mrp.group_mrp_manager,1,0,0,0
 
 
-"mrp_plm.access_product_template_plm_manager","product.template plm_manager","product.model_product_template",mrp_plm.group_plm_manager,1,0,0,0
-
 "purchase.access_product_template_purchase_manager","product.template purchase_manager","product.model_product_template",purchase.group_purchase_manager,1,0,0,0
 "purchase.access_product_product_purchase_manager","product.template purchase_manager","product.model_product_product",purchase.group_purchase_manager,1,0,0,0
 
@@ -33,8 +31,6 @@ hr_expense.access_product_template_hr_expense_user,product.template.hr.expense.u
 
 
 
-point_of_sale.access_product_product_pos_manager,product.product.pos manager,product.model_product_product,point_of_sale.group_pos_manager,1,0,0,0
-point_of_sale.access_product_template_pos_manager,product.template pos manager,product.model_product_template,point_of_sale.group_pos_manager,1,0,0,0
 
 "access_show_product_template_only","show_product_template_only","product.model_product_template",product_creation_restrict.product_creation_restriction_group,1,1,1,1
 
