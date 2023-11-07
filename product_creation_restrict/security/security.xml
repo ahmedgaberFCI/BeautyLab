@@ -1,0 +1,5 @@
+<odoo>
+    <record id="product_creation_restriction_group" model="res.groups">
+        <field name="name">Product Creation Restriction</field>
+    </record>
+</odoo>
