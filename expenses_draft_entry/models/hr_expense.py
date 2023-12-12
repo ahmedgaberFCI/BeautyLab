@@ -26,7 +26,7 @@ class HrExpense(models.Model):
                 expense.state = "done"
 
     state = fields.Selection(selection_add=[
-        ('second_approve', "Second Approve")
+        ('second_approve', "Second Approve"),('done',),
     ], ondelete={'second_approve': 'set default'})
 
     def _get_account_move_line_values_draft(self):
