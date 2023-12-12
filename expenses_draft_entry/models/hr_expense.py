@@ -227,7 +227,7 @@ class HrExpenseSheet(models.Model):
     _inherit = "hr.expense.sheet"
 
     state = fields.Selection(selection_add=[
-        ('second_approve', "Second Approve")
+        ('second_approve', "Second Approve"),('post',)
     ],  ondelete={'second_approve': 'set default'})
     budget_controller = fields.Boolean(string="Budget Controller", tracking=True, copy=False)
 
