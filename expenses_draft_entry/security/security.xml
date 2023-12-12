@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8" ?>
+
+
+<odoo>
+
+    <record id="group_second_approve_expense" model="res.groups">
+        <field name="name">Second Approve Expense User</field>
+    </record>
+
+</odoo>

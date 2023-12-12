@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<odoo>
+
+    <record id="view_hr_expense_sheet_form_inherit" model="ir.ui.view">
+        <field name="name">hr.expense.sheet.form.inherit</field>
+        <field name="model">hr.expense.sheet</field>
+        <field name="inherit_id" ref="hr_expense.view_hr_expense_sheet_form"/>
+        <field name="arch" type="xml">
+
+            <xpath expr="//header/field[@name='state']" position="replace"/>
+            <xpath expr="//header" position="inside">
+                <!--                <attribute name="statusbar_visible">'draft,posted,ask_return,approve_return'</attribute>-->
+                <field name="state" widget="statusbar" statusbar_visible="draft,submit,approve,second_approve,post,done"
+                       force_save="1"/>
+
+            </xpath>
+            <button name="action_sheet_move_create" position="replace"/>
+            <button name="approve_expense_sheets" position="after">
+                <button name="action_sheet_move_create_draft" string="Draft Journal Entries" type="object"
+                        groups="account.group_account_manager"
+                        attrs="{'invisible': [('state', '!=', 'second_approve')]}"
+                        class="oe_highlight o_expense_sheet_post"/>
+
+                <button name="action_second_approve" string="Second Approve" type="object"
+                        attrs="{'invisible': [('state', '!=', 'approve')]}"
+                        groups="expenses_draft_entry.group_second_approve_expense"
+                />
+
+
+            </button>
+
+            <xpath expr="//field[@name='user_id']" position="after">
+                <field name="budget_controller" groups="purchase_request.group_budget_controller" readonly="0"/>
+
+            </xpath>
+
+
+        </field>
+    </record>
+
+
+    <record id="view_hr_expense_form_inherit_second_approve" model="ir.ui.view">
+        <field name="name">hr.expense.form.inherit</field>
+        <field name="model">hr.expense</field>
+        <field name="inherit_id" ref="hr_expense.hr_expense_view_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//header/field[@name='state']" position="replace"/>
+            <xpath expr="//header" position="inside">
+                <field name="state" widget="statusbar"
+                       statusbar_visible="draft,reported,approved,second_approve,done,refused"/>
+            </xpath>
+
+        </field>
+    </record>
+
+
+</odoo>
