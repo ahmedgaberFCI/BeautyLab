@@ -1,0 +1,106 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data>
+        <template id="report_trial_balance_document">
+            <div class="o_account_report_page">
+                <div class="row">
+                    <div class="col-lg-12 text-center">
+                        <h1>Trial Balance</h1>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-lg-12">
+                        <div class="mt16">
+                            <table width="100%" class="o_account_report_expandable">
+                                <thead>
+                                    <tr>
+                                        <th></th>
+                                        <t t-foreach="data['compare_period']" t-as="pd">
+                                            <th class="text-center" colspan="2">
+                                                <t t-esc="pd['name']"/>
+                                            </th>
+                                        </t>
+                                        <th class="text-center" colspan="2">Initial Balance</th>
+                                        <th class="text-center" colspan="2"><t t-esc="data['string']"/></th>
+                                        <th class="text-center" colspan="2">Total</th>
+                                    </tr>
+                                    <tr>
+                                        <th></th>
+                                        <th class="text-center">Debit</th>
+                                        <th>Credit</th>
+                                        <t t-foreach="data['compare_period']" t-as="pd">
+                                            <th class="text-center">Debit</th>
+                                            <th>Credit</th>
+                                        </t>
+                                        <th class="text-center">Debit</th>
+                                        <th>Credit</th>
+                                        <th class="text-center">Debit</th>
+                                        <th>Credit</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <t t-set="tot_int_debit" t-value="0.0"/>
+                                    <t t-set="tot_int_credit" t-value="0.0"/>
+                                    <t t-set="tot_debit" t-value="0.0"/>
+                                    <t t-set="tot_credit" t-value="0.0"/>
+                                    <t t-foreach="data['move_lines']" t-as="dt">
+                                        <tr>
+                                            <td><t t-esc="dt['account']"/></td>
+                                            <t t-foreach="dt['period_data']" t-as="pd">
+                                                <td class="text-center"><t t-esc="pd['debit']" t-options='{"widget": "monetary", "display_currency": data["currency_id"]}'/></td>
+                                                <td><t t-esc="pd['credit']" t-options='{"widget": "monetary", "display_currency": data["currency_id"]}'/></td>
+                                            </t>
+                                            <td class="text-center"><t t-esc="dt['init_debit']" t-options='{"widget": "monetary", "display_currency": data["currency_id"]}'/></td>
+                                            <td><t t-esc="dt['init_credit']" t-options='{"widget": "monetary", "display_currency": data["currency_id"]}'/></td>
+                                            <td class="text-center"><t t-esc="dt['debit']" t-options='{"widget": "monetary", "display_currency": data["currency_id"]}'/></td>
+                                            <td><t t-esc="dt['credit']" t-options='{"widget": "monetary", "display_currency": data["currency_id"]}'/></td>
+                                            <td class="text-center"><t t-esc="dt['init_debit'] + dt['debit']" t-options='{"widget": "monetary", "display_currency": data["currency_id"]}'/></td>
+                                            <td class="text-center"><t t-esc="dt['init_credit'] + dt['credit']" t-options='{"widget": "monetary", "display_currency": data["currency_id"]}'/></td>
+                                        </tr>
+                                        <t t-set="tot_int_debit" t-value="tot_int_debit+dt['init_debit']"/>
+                                        <t t-set="tot_int_credit" t-value="tot_int_credit+dt['init_credit']"/>
+                                        <t t-set="tot_debit" t-value="tot_debit+dt['debit']"/>
+                                        <t t-set="tot_credit" t-value="tot_credit+dt['credit']"/>
+                                    </t>
+                                    <tr>
+                                        <td><b>TOTAL</b></td>
+                                        <t t-foreach="data['compare_period']" t-as="pd">
+                                            <td></td>
+                                            <td></td>
+                                        </t>
+                                        <td class="text-center"><b><t t-esc="tot_int_debit" t-options='{"widget": "monetary", "display_currency": data["currency_id"]}'/></b></td>
+                                        <td><b><t t-esc="tot_int_credit" t-options='{"widget": "monetary", "display_currency": data["currency_id"]}'/></b></td>
+                                        <td class="text-center"><b><t t-esc="tot_debit" t-options='{"widget": "monetary", "display_currency": data["currency_id"]}'/></b></td>
+                                        <td><b><t t-esc="tot_credit" t-options='{"widget": "monetary", "display_currency": data["currency_id"]}'/></b></td>
+                                        <td class="text-center"><b><t t-esc="tot_int_debit+tot_debit" t-options='{"widget": "monetary", "display_currency": data["currency_id"]}'/></b></td>
+                                        <td><b><t t-esc="tot_int_credit+tot_credit" t-options='{"widget": "monetary", "display_currency": data["currency_id"]}'/></b></td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </template>
+        <template id="report_trial_balance">
+            <t t-set="data_report_landscape" t-value="True"/>
+            <t t-call="web.basic_layout">
+                <t t-call-assets="account_financial_reports_knk.assets_common" t-js="False"/>
+                <t t-foreach="docs" t-as="data">
+                    <div class="page">
+                        <t t-call="account_financial_reports_knk.report_trial_balance_document"/>
+                    </div>
+                    <p style="page-break-before:always;"> </p>
+                </t>
+            </t>
+        </template>
+        <record id="action_report_trial_balance" model="ir.actions.report">
+            <field name="name">Trial Balance</field>
+            <field name="model">account.move</field>
+            <field name="report_name">account_financial_reports_knk.report_trial_balance</field>
+            <field name="report_file">account_financial_reports_knk.report_trial_balance</field>
+            <field name="report_type">qweb-pdf</field>
+            <field name="print_report_name">Trial Balance</field>
+        </record>
+    </data>
+</odoo>

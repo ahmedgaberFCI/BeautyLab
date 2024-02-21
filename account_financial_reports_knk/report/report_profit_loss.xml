@@ -1,0 +1,195 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data>
+        <template id="report_profit_loss_document">
+            <div class="o_account_report_page">
+                <div class="row">
+                    <div class="col-lg-12 text-center">
+                        <h1>Profit and Loss</h1>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-lg-12">
+                        <div class="mt16">
+                            <table width="100%" class="o_account_report_expandable">
+                                <thead>
+                                    <tr>
+                                        <th></th>
+                                        <t t-foreach="data['compare_period']" t-as="pd">
+                                            <th class="text-center">
+                                                <t t-esc="pd['name']" />
+                                            </th>
+                                        </t>
+                                        <th class="text-center">
+                                            <t t-esc="data['string']" />
+                                        </th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td><b>Income</b></td>
+                                        <td><b></b></td>
+                                    </tr>
+                                    <tr>
+                                        <td><span style="margin-left:20px;"><b>Gross Profit</b></span></td>
+                                        <t t-foreach="data['compare_period']" t-as="pd">
+                                            <td class="text-center"></td>
+                                        </t>
+                                        <td class="text-center"><b>
+                                                <t t-esc="abs(data['total_op_ic']+data['total_op_ot'])" t-options='{"widget": "monetary", "display_currency": data["currency_id"]}' /></b></td>
+                                    </tr>
+                                    <tr class="o_account_report_line">
+                                        <td>
+                                            <t t-if="data['op_ic_lines']">
+                                                <div class="o_account_report_unfoldable fa fa-fw fa-caret-right" style="display:inline-block;" role="img" aria-label="Unfold" title="Unfold" data-child-class="tr_child_op_income" />
+                                            </t>
+                                            <span style="margin-left:40px;"><b>Operating Income</b></span>
+                                        </td>
+                                        <t t-foreach="data['compare_period']" t-as="pd">
+                                            <td class="text-center"></td>
+                                        </t>
+                                        <td class="text-center"><b>
+                                                <t t-esc="abs(data['total_op_ic'])" t-options='{"widget": "monetary", "display_currency": data["currency_id"]}' /></b></td>
+                                    </tr>
+                                    <t t-foreach="data['op_ic_lines']" t-as="dt">
+                                        <tr class='tr_child_op_income' style="display: none;">
+                                            <td>
+                                                <span style="margin-left:75px;">
+                                                    <t t-esc="dt['account']" /></span>
+                                            </td>
+                                            <t t-foreach="dt['period_data']" t-as="pd">
+                                                <td class="text-center">
+                                                    <t t-esc="abs(pd['debit']-pd['credit'])" t-options='{"widget": "monetary", "display_currency": data["currency_id"]}' />
+                                                </td>
+                                            </t>
+                                            <td class="text-center">
+                                                <t t-esc="abs(dt['debit']-dt['credit'])" t-options='{"widget": "monetary", "display_currency": data["currency_id"]}' />
+                                            </td>
+                                        </tr>
+                                    </t>
+                                    <tr class="o_account_report_line">
+                                        <td>
+                                            <t t-if="data['op_ot_lines']">
+                                                <div class="o_account_report_unfoldable fa fa-fw fa-caret-right" style="display:inline-block;" role="img" aria-label="Unfold" title="Unfold" data-child-class="tr_child_ot_income" />
+                                            </t>
+                                            <span style="margin-left:20px;"><b>Other Income</b></span>
+                                        </td>
+                                        <t t-foreach="data['compare_period']" t-as="pd">
+                                            <td class="text-center"></td>
+                                        </t>
+                                        <td class="text-center"><b>
+                                                <t t-esc="abs(data['total_op_ot'])" t-options='{"widget": "monetary", "display_currency": data["currency_id"]}' /></b></td>
+                                    </tr>
+                                    <t t-foreach="data['op_ot_lines']" t-as="dt">
+                                        <tr class='tr_child_ot_income' style="display: none;">
+                                            <td><span style="margin-left:75px;">
+                                                    <t t-esc="dt['account']" /></span></td>
+                                            <t t-foreach="dt['period_data']" t-as="pd">
+                                                <td class="text-center">
+                                                    <t t-esc="abs(pd['debit']-pd['credit'])" t-options='{"widget": "monetary", "display_currency": data["currency_id"]}' />
+                                                </td>
+                                            </t>
+                                            <td>
+                                                <t t-esc="abs(dt['debit']-dt['credit'])" t-options='{"widget": "monetary", "display_currency": data["currency_id"]}' />
+                                            </td>
+                                        </tr>
+                                    </t>
+                                    <tr>
+                                        <td><b>Expenses</b></td>
+                                        <t t-foreach="data['compare_period']" t-as="pd">
+                                            <td class="text-center"></td>
+                                        </t>
+                                        <td class="text-center"><b>
+                                                <t t-esc="abs(data['total_exp']+data['total_dep'])" t-options='{"widget": "monetary", "display_currency": data["currency_id"]}' /></b></td>
+                                    </tr>
+                                    <tr class="o_account_report_line">
+                                        <td>
+                                            <t t-if="data['exp_lines']">
+                                                <div class="o_account_report_unfoldable fa fa-fw fa-caret-right" style="display:inline-block;" role="img" aria-label="Unfold" title="Unfold" data-child-class="tr_child_exp_lines" />
+                                            </t>
+                                            <span style="margin-left:20px;"><b>Expenses</b></span>
+                                        </td>
+                                        <t t-foreach="data['compare_period']" t-as="pd">
+                                            <td class="text-center"></td>
+                                        </t>
+                                        <td class="text-center"><b>
+                                                <t t-esc="abs(data['total_exp'])" t-options='{"widget": "monetary", "display_currency": data["currency_id"]}' /></b></td>
+                                    </tr>
+                                    <t t-foreach="data['exp_lines']" t-as="dt">
+                                        <tr class='tr_child_exp_lines' style="display: none;">
+                                            <td><span style="margin-left:75px;">
+                                                    <t t-esc="dt['account']" /></span></td>
+                                            <t t-foreach="dt['period_data']" t-as="pd">
+                                                <td class="text-center">
+                                                    <t t-esc="abs(pd['debit']-pd['credit'])" t-options='{"widget": "monetary", "display_currency": data["currency_id"]}' />
+                                                </td>
+                                            </t>
+                                            <td class="text-center">
+                                                <t t-esc="abs(dt['debit']-dt['credit'])" t-options='{"widget": "monetary", "display_currency": data["currency_id"]}' />
+                                            </td>
+                                        </tr>
+                                    </t>
+                                    <tr class="o_account_report_line">
+                                        <td>
+                                            <t t-if="data['dep_lines']">
+                                                <div class="o_account_report_unfoldable fa fa-fw fa-caret-right" style="display:inline-block;" role="img" aria-label="Unfold" title="Unfold" data-child-class="tr_child_dep_lines" />
+                                            </t>
+                                            <span style="margin-left:20px;"><b>Depreciation</b></span>
+                                        </td>
+                                        <t t-foreach="data['compare_period']" t-as="pd">
+                                            <td class="text-center"></td>
+                                        </t>
+                                        <td class="text-center"><b>
+                                                <t t-esc="abs(data['total_dep'])" t-options='{"widget": "monetary", "display_currency": data["currency_id"]}' /></b></td>
+                                    </tr>
+                                    <t t-foreach="data['dep_lines']" t-as="dt">
+                                        <tr class='tr_child_dep_lines' style="display: none;">
+                                            <td><span style="margin-left:40px;">
+                                                    <t t-esc="dt['account']" /></span></td>
+                                            <t t-foreach="dt['period_data']" t-as="pd">
+                                                <td class="text-center">
+                                                    <t t-esc="abs(pd['debit']-pd['credit'])" t-options='{"widget": "monetary", "display_currency": data["currency_id"]}' />
+                                                </td>
+                                            </t>
+                                            <td class="text-center">
+                                                <t t-esc="abs(dt['debit']-dt['credit'])" t-options='{"widget": "monetary", "display_currency": data["currency_id"]}' />
+                                            </td>
+                                        </tr>
+                                    </t>
+                                    <tr>
+                                        <td><b>Net Profit</b></td>
+                                        <t t-foreach="data['compare_period']" t-as="pd">
+                                            <td class="text-center"></td>
+                                        </t>
+                                        <td class="text-center"><b>
+                                                <t t-esc="data['net_profit']" t-options='{"widget": "monetary", "display_currency": data["currency_id"]}' /></b></td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </template>
+        <template id="report_profit_loss">
+            <t t-set="data_report_landscape" t-value="True" />
+            <t t-call="web.basic_layout">
+                <t t-call-assets="account_financial_reports_knk.assets_common" t-js="False" />
+                <t t-foreach="docs" t-as="data">
+                    <div class="page">
+                        <t t-call="account_financial_reports_knk.report_profit_loss_document" />
+                    </div>
+                    <p style="page-break-before:always;"> </p>
+                </t>
+            </t>
+        </template>
+        <record id="action_report_profit_loss" model="ir.actions.report">
+            <field name="name">Profit and Loss</field>
+            <field name="model">account.move</field>
+            <field name="report_name">account_financial_reports_knk.report_profit_loss</field>
+            <field name="report_file">account_financial_reports_knk.report_profit_loss</field>
+            <field name="report_type">qweb-pdf</field>
+            <field name="print_report_name">Profit and Loss</field>
+        </record>
+    </data>
+</odoo>

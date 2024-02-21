@@ -1,0 +1,90 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data>
+        <template id="report_general_ledger_document">
+            <div class="o_account_report_page">
+                <div class="row">
+                    <div class="col-lg-12 text-center">
+                        <h1>General Ledger</h1>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-lg-12">
+                        <div class="mt16">
+                            <table width="100%" class="o_account_report_expandable">
+                                <thead>
+                                    <tr>
+                                        <th></th>
+                                        <th>Date</th>
+                                        <th>Communication</th>
+                                        <th>Partner</th>
+                                        <th>Currency</th>
+                                        <th>Debit</th>
+                                        <th>Credit</th>
+                                        <th>Balance</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <t t-foreach="data['move_lines']" t-as="dt">
+                                        <tr class="o_account_report_line">
+                                            <td>
+                                                <t t-if="dt['lines']">
+                                                    <div class="o_account_report_unfoldable fa fa-fw fa-caret-right" style="display:inline-block;" role="img" aria-label="Unfold" title="Unfold" t-attf-data-child-class="tr_child_line_#{dt['account_id']}"/>
+                                                </t>
+                                                <b><t t-esc="dt['account']"/></b>
+                                            </td>
+                                            <td><b><t t-esc="dt['date']"/></b></td>
+                                            <td><b><t t-esc="dt['name']"/></b></td>
+                                            <td><b><t t-esc="dt['partner']"/></b></td>
+                                            <td><b><t t-esc="dt['amount_currency']"/></b></td>
+                                            <td><b><t t-esc="dt['debit']"/></b></td>
+                                            <td><b><t t-esc="dt['credit']"/></b></td>
+                                            <td><b><t t-esc="dt['debit']-dt['credit']"/></b></td>
+                                        </tr>
+                                        <t t-if="dt['lines']">
+                                            <t t-foreach="dt['lines']" t-as="ln">
+                                                <tr t-attf-class="tr_child_line_#{dt['account_id']}" style="display: none;">
+                                                    <td>
+                                                        <span style="margin-left:75px;color: #008784"><t t-esc="ln.move_id.name"/></span>
+                                                        <div class="js_account_move_line_footnote fa fa-fw fa-caret-down" style="display:inline-block;" role="img" aria-label="View Journal Entry" title="View Journal Entry" t-att-data-res-id="ln.move_id.id"/>
+                                                    </td>
+                                                    <td><t t-esc="ln.date"/></td>
+                                                    <td><t t-esc="ln.name"/></td>
+                                                    <td><t t-esc="ln.partner_id.name"/></td>
+                                                    <td><t t-esc="ln.amount_currency"/></td>
+                                                    <td><t t-esc="ln.debit"/></td>
+                                                    <td><t t-esc="ln.credit"/></td>
+                                                    <td><t t-esc="ln.debit-ln.credit"/></td>
+                                                </tr>
+                                            </t>
+                                        </t>
+                                    </t>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </template>
+        <template id="report_general_ledger">
+            <t t-set="data_report_landscape" t-value="True"/>
+            <t t-call="web.basic_layout">
+                <t t-call-assets="account_financial_reports_knk.assets_common" t-js="False"/>
+                <t t-foreach="docs" t-as="data">
+                    <div class="page">
+                        <t t-call="account_financial_reports_knk.report_general_ledger_document"/>
+                    </div>
+                    <p style="page-break-before:always;"> </p>
+                </t>
+            </t>
+        </template>
+        <record id="action_report_general_ledger" model="ir.actions.report"> 
+            <field name="name">General Ledger</field> 
+            <field name="model">account.move</field> 
+            <field name="report_name">account_financial_reports_knk.report_general_ledger</field>
+            <field name="report_file">account_financial_reports_knk.report_general_ledger</field>
+            <field name="report_type">qweb-pdf</field>
+            <field name="print_report_name">General Ledger</field>
+        </record>
+    </data>
+</odoo>

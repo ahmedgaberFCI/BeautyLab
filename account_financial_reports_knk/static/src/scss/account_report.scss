@@ -1,0 +1,68 @@
+.o_foldable_menu {
+    &.o_closed_menu {
+        display: none;
+    }
+    .o_open_menu {
+        display: block;
+    }
+}
+.o_account_report_page {
+    background-color: $o-view-background-color;
+    margin: 16px auto;
+    padding: 24px 16px;
+    // Manage expand icon
+    table.o_account_report_expandable {
+        thead tr {
+            border-width: 2px;
+            border-top-style: groove;
+            border-bottom-style: groove;
+        }
+        tbody tr {
+            border-width: 1px;
+            border-top-style: solid;
+            border-bottom-style: groove;
+            .o_account_report_unfoldable, .o_account_report_foldable {
+                cursor: pointer;
+            }
+        }
+        tbody, tfoot {
+            & > tr > td ~ td > span {
+                margin-left: 10px;
+            }
+            tr {
+                .o_account_report_no_fold {
+                    margin-left: 18px;
+                }
+                .o_account_report_unfoldable, .o_account_report_foldable {
+                    margin-left: -2px;
+                }
+            }
+        }
+    }
+
+    @include media-breakpoint-down(sm) {
+        .o_account_report_line {
+            & .fa-caret-down, & .fa-caret-right {
+                font-size: 2em;
+            }
+        }
+    }
+}
+
+.o_account_report_buttons {
+    @include media-breakpoint-down(sm) {
+        display: grid;
+        grid-gap: 4px; // For compatibility
+        gap: 4px;
+    }
+}
+.o_account_search_knk {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+}
+
+.o_foldable_menu.o_account_report_search {
+    margin-left: 10px;
+    margin-right: 10px;
+}

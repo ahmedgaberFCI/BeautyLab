@@ -1,0 +1,3 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_output_group_user,access_output group_user,model_output,base.group_user,1,1,1,1
+access_output_group_portal_public,access_output group_portal_public,model_output,,1,0,0,0

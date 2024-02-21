@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data>
+        <record id="account_xls_output_view" model="ir.ui.view">
+            <field name="name">Excel Output</field>
+            <field name="model">output</field>
+            <field name="arch" type="xml">
+                <form string="Excel Output" version="7.0">
+                    <group>
+                        <field name="name" invisible="1" />
+                        <h1>
+                            <field name="xls_output" filename="name" />
+                        </h1>
+                    </group>
+                    <footer>
+                        <button special="cancel" string="_Close" class="oe_link" />
+                    </footer>
+                </form>
+            </field>
+        </record>
+    </data>
+</odoo>

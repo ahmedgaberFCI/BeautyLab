@@ -1,0 +1,106 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates>
+    <t t-name="tb.button">
+        <div class="o_list_buttons o_account_report_buttons">
+            <button type="button" class="btn btn-primary o_report_print_pdf">Print PDF</button>
+            <button type="button" class="btn btn-primary o_report_print_xls">Print XLS</button>
+        </div>
+    </t>
+    <form class="form-inline o_account_search_knk" t-name="tb.report_tb_search">
+        <div t-attf-class="form-group col-lg-4">
+            <div class="btn-group o_dropdown">
+                <a type="button" class="dropdown-toggle" data-toggle="dropdown" data-bs-toggle="dropdown">
+                    <span class="fa fa-calendar"></span>Dates: <span class="selected_date text-decoration-underline text-dark">This Month</span>
+                </a>
+                <div class="dropdown-menu o_filter_menu" role="menu">
+                    <a role="menuitem" class="dropdown-item js_account_report_date_filter selected" title="This Month" data-filter="this_month">This Month</a>
+                    <a role="menuitem" class="dropdown-item js_account_report_date_filter" title="This Quarter" data-filter="this_quarter">This Quarter</a>
+                    <a role="menuitem" class="dropdown-item js_account_report_date_filter" title="This Financial Year" data-filter="this_fin_year">This Financial Year</a>
+                    <div role="separator" class="dropdown-divider"></div>
+                    <a role="menuitem" class="dropdown-item js_account_report_date_filter" title="Last Month" data-filter="last_month">Last Month</a>
+                    <a role="menuitem" class="dropdown-item js_account_report_date_filter" title="Last Quarter" data-filter="last_quarter">Last Quarter</a>
+                    <a role="menuitem" class="dropdown-item js_account_report_date_filter" title="Last Financial Year" data-filter="last_fin_year">Last Financial Year</a>
+                    <div t-if="report_name == 'trial_balance_report'" role="separator" class="dropdown-divider"></div>
+                    <a t-if="report_name == 'trial_balance_report'" role="menuitem" class="dropdown-item js_foldable_trigger o_closed_menu js_account_report_date_filter" data-filter='custom_filter_date'>Custom</a>
+                    <div class="o_foldable_menu o_closed_menu o_account_report_search" data-filter='custom_filter_date'>
+                        <label class="custom-date" for="date_from">Start Date :</label>
+                        <div class="mb-3 custom-date">
+                            <div class='o_datepicker js_account_reports_datetimepicker'>
+                                <input type='text' class="o_datepicker_input" name="date_from" />
+                                <span class="o_datepicker_button"/>
+                            </div>
+                        </div>
+                        <label class="custom-date" for="date_to" >End Date :</label>
+                        <div class="mb-3custom-date">
+                            <div class='o_datepicker js_account_reports_datetimepicker'>
+                                <input type='text' class="o_datepicker_input" name="date_to" />
+                                <span class="o_datepicker_button"/>
+                            </div>
+                        </div>
+                        <button type="button" class="btn btn-primary js_account_report_date_filter" data-filter="custom">Apply</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div t-attf-class="form-group col-lg-4">
+            <div class="btn-group">
+                <span class="fa fa-filter"/> Options:
+                <select class="o_input o_tb_report_entry_type">
+                    <option t-att-data-type="'all'">All Entries</option>
+                    <option t-att-data-type="'draft'">Draft Entries</option>
+                    <option t-att-data-type="'posted'">Posted Entries</option>
+                </select>
+            </div>
+        </div>
+        <div class="form-group col-lg-4">
+            <div class="btn-group">
+                <span class="fa fa-book"/>
+                Journals:
+                <select class="o_input o_tb_report_journals">
+                    <option t-att-value="0">All</option>
+                    <option t-foreach="journals" t-as="journal" t-att-value="journal">
+                        <t t-esc="journals[journal]"/>
+                    </option>
+                </select>
+            </div>
+        </div>
+        <div t-attf-class="form-group col-lg-8">
+            <t t-if="report_name != 'general_ledger_report'">
+                <div class="btn-group o_dropdown">
+                    <a type="button" class="dropdown-toggle" data-toggle="dropdown" data-bs-toggle="dropdown">
+                        <span class="fa fa-bar-chart"></span> Comparison:
+                    </a>
+                    <div class="dropdown-menu o_filters_menu" role="menu" x-placement="bottom-start">
+                        <a role="menuitem" title="No Comparison" data-filter="no_comparison" class="dropdown-item js_account_report_date_cmp_filter selected">No Comparison</a>
+                        <div role="separator" class="dropdown-divider"></div>
+                        <a role="menuitem" class="dropdown-item js_foldable_trigger o_closed_menu" data-filter="previous_period_filter">Previous Period</a>
+                        <div class="o_foldable_menu o_account_report_search o_closed_menu" data-filter="previous_period_filter" style="margin-left: 10px;margin-right: 10px;">
+                            <label for="periods_number" style="display: inline-block;margin-bottom: 0.5rem;">Number of periods :</label><br/>
+                            <input type="number" name="periods_number" class="js_input_prev_period"/><br/>
+                            <button type="button" class="btn btn-primary js_account_report_date_cmp_filter" data-filter="previous_period">Apply</button>
+                        </div>
+                        <div role="separator" class="dropdown-divider"></div>
+                        <a role="menuitem" class="dropdown-item js_foldable_trigger o_closed_menu" data-filter='same_last_year_filter'>Same Period Last Year</a>
+                        <li class="o_foldable_menu o_closed_menu o_account_report_search" data-filter='same_last_year_filter' style="margin-left: 10px;margin-right: 10px;">
+                            <label for="periods_number" style="display: inline-block;margin-bottom: 0.5rem;">Number of periods :</label><br/>
+                            <input type="number" name="periods_number" class="js_input_last_period"/><br />
+                            <button type="button" class="btn btn-primary js_account_report_date_cmp_filter" data-filter='same_last_year'>Apply</button>
+                        </li>
+                    </div>
+                </div>
+            </t>
+        </div>
+        <div class="form-group col-lg-4">
+            <div class="btn-group">
+                <span class="fa fa-book"/>
+                Company:
+                <select class="o_input o_tb_report_companies">
+                    <option t-att-value="0">All</option>
+                    <option t-foreach="companies" t-as="company" t-att-value="company">
+                        <t t-esc="companies[company]"/>
+                    </option>
+                </select>
+            </div>
+        </div>
+    </form>
+</templates>
